@@ -32,9 +32,18 @@ enum
     eFontHeight = 48
 };
 
+//Skype begin
+UINT g_iIdSkypeControlApiAttach;
+enum
+{
+    eSkypeControlApiAttachSuccess = 0
+};
+//Skype end
+
 //-------------------------------------------------------------------------------------------------
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+    static COLORREF colRef = RGB(255, 127, 0);
     switch (uMsg)
     {
     case WM_PAINT:
@@ -48,7 +57,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 rect.top = 40;
                 SelectObject(hDc, g_hFont);
                 SetBkColor(hDc, RGB(1, 1, 1));
-                SetTextColor(hDc, RGB(255, 127, 0));
+                SetTextColor(hDc, colRef);
                 DrawText(hDc, g_wSoundCardName, -1, &rect, DT_CENTER);
             }
             EndPaint(hWnd, &ps);
@@ -61,8 +70,41 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         return 0;
     case WM_DESTROY:
         PostQuitMessage(0);
+        //Skype begin
+    case WM_COPYDATA:
+        //Skype end
         return 0;
     }
+
+    //Skype begin
+    if (uMsg == g_iIdSkypeControlApiAttach)
+    {
+        if (lParam == eSkypeControlApiAttachSuccess)
+        {
+            const size_t szLen = wcslen(g_wSoundCardName)+1;
+            if (const int iLength = WideCharToMultiByte(CP_UTF8, 0, g_wSoundCardName, szLen+1, 0, 0, 0, 0))
+                if (char *const cBuf = static_cast<char*>(malloc(14 + iLength)))        //[14 = "SET AUDIO_OUT "
+                {
+                    strcpy(cBuf, "SET AUDIO_OUT ");
+                    if (WideCharToMultiByte(CP_UTF8, 0, g_wSoundCardName, szLen+1, cBuf+14, iLength, 0, 0) == iLength)
+                    {
+                        COPYDATASTRUCT copyData;
+                        copyData.dwData = 0;
+                        copyData.cbData = 14 + iLength;
+                        copyData.lpData = cBuf;
+                        if (SendMessage(reinterpret_cast<HWND>(wParam), WM_COPYDATA, reinterpret_cast<WPARAM>(hWnd), reinterpret_cast<LPARAM>(&copyData)) == TRUE)
+                        {
+                            colRef = RGB(255, 255, 0);
+                            InvalidateRect(hWnd, 0, FALSE);
+                        }
+                    }
+                    free(cBuf);
+                }
+        }
+        return 0;
+    }
+    //Skype end
+
     return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
@@ -127,7 +169,7 @@ int main()
                                                         propKeyFriendlyName.fmtid.Data1 = 0xA45C254E;
                                                         propKeyFriendlyName.fmtid.Data2 = 0xDF1C;
                                                         propKeyFriendlyName.fmtid.Data3 = 0x4EFD;
-                                                        propKeyFriendlyName.fmtid.Data4[0] = '\x80';
+                                                        propKeyFriendlyName.fmtid.Data4[0] = '\x80';//***ok
                                                         propKeyFriendlyName.fmtid.Data4[1] = '\x20';
                                                         propKeyFriendlyName.fmtid.Data4[2] = '\x67';
                                                         propKeyFriendlyName.fmtid.Data4[3] = '\xD1';//***ok
@@ -171,6 +213,12 @@ int main()
                                                                         {
                                                                             if (SetLayeredWindowAttributes(hWnd, 0, 0, LWA_COLORKEY))
                                                                             {
+                                                                                //Skype begin
+                                                                                if (iCount > 1 && (g_iIdSkypeControlApiAttach = RegisterWindowMessage(L"SkypeControlAPIAttach")) &&
+                                                                                        (iCount = RegisterWindowMessage(L"SkypeControlAPIDiscover")))
+                                                                                    PostMessage(HWND_BROADCAST, iCount, reinterpret_cast<WPARAM>(hWnd), 0);
+                                                                                //Skype end
+
                                                                                 SetTimer(hWnd, 1, 1500, 0);
                                                                                 MSG msg;
                                                                                 while (GetMessage(&msg, 0, 0, 0) > 0)
