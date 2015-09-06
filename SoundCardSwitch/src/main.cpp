@@ -25,27 +25,20 @@ __CRT_UUID_DECL(CPolicyConfigClient, 0x870af99c, 0x171d, 0x4f9e, 0xaf, 0x0d, 0xe
 //-------------------------------------------------------------------------------------------------
 const wchar_t *const g_wGuidClass = L"15423203-ff9d-2e13-1788-e087bcd8dbcb";
 wchar_t *g_wSoundCardName;
-HFONT g_hFont;
 
 enum
 {
     eFontHeight = 48
 };
 
-//Skype begin
-UINT g_iIdSkypeControlApiAttach;
-enum
-{
-    eSkypeControlApiAttachSuccess = 0
-};
-//Skype end
-
 //-------------------------------------------------------------------------------------------------
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-    static COLORREF colRef = RGB(255, 127, 0);
+    static HFONT hFont;
     switch (uMsg)
     {
+    case WM_CREATE:
+        return (hFont = CreateFont(eFontHeight, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH, L"Tahoma")) ? 0 : -1;
     case WM_PAINT:
     {
         PAINTSTRUCT ps;
@@ -55,9 +48,9 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             if (GetClientRect(hWnd, &rect))
             {
                 rect.top = 40;
-                SelectObject(hDc, g_hFont);
+                SelectObject(hDc, hFont);
                 SetBkColor(hDc, RGB(1, 1, 1));
-                SetTextColor(hDc, colRef);
+                SetTextColor(hDc, RGB(255, 127, 0));
                 DrawText(hDc, g_wSoundCardName, -1, &rect, DT_CENTER);
             }
             EndPaint(hWnd, &ps);
@@ -69,42 +62,11 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         PostMessage(hWnd, WM_CLOSE, 0, 0);
         return 0;
     case WM_DESTROY:
+        if (hFont)
+            DeleteObject(hFont);
         PostQuitMessage(0);
-        //Skype begin
-    case WM_COPYDATA:
-        //Skype end
         return 0;
     }
-
-    //Skype begin
-    if (uMsg == g_iIdSkypeControlApiAttach)
-    {
-        if (lParam == eSkypeControlApiAttachSuccess)
-        {
-            const size_t szLen = wcslen(g_wSoundCardName)+1;
-            if (const int iLength = WideCharToMultiByte(CP_UTF8, 0, g_wSoundCardName, szLen+1, 0, 0, 0, 0))
-                if (char *const cBuf = static_cast<char*>(malloc(14 + iLength)))        //[14 = "SET AUDIO_OUT "
-                {
-                    strcpy(cBuf, "SET AUDIO_OUT ");
-                    if (WideCharToMultiByte(CP_UTF8, 0, g_wSoundCardName, szLen+1, cBuf+14, iLength, 0, 0) == iLength)
-                    {
-                        COPYDATASTRUCT copyData;
-                        copyData.dwData = 0;
-                        copyData.cbData = 14 + iLength;
-                        copyData.lpData = cBuf;
-                        if (SendMessage(reinterpret_cast<HWND>(wParam), WM_COPYDATA, reinterpret_cast<WPARAM>(hWnd), reinterpret_cast<LPARAM>(&copyData)) == TRUE)
-                        {
-                            colRef = RGB(255, 255, 0);
-                            InvalidateRect(hWnd, 0, FALSE);
-                        }
-                    }
-                    free(cBuf);
-                }
-        }
-        return 0;
-    }
-    //Skype end
-
     return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
@@ -169,14 +131,14 @@ int main()
                                                         propKeyFriendlyName.fmtid.Data1 = 0xA45C254E;
                                                         propKeyFriendlyName.fmtid.Data2 = 0xDF1C;
                                                         propKeyFriendlyName.fmtid.Data3 = 0x4EFD;
-                                                        propKeyFriendlyName.fmtid.Data4[0] = '\x80';//***ok
+                                                        propKeyFriendlyName.fmtid.Data4[0] = '\x80';
                                                         propKeyFriendlyName.fmtid.Data4[1] = '\x20';
                                                         propKeyFriendlyName.fmtid.Data4[2] = '\x67';
-                                                        propKeyFriendlyName.fmtid.Data4[3] = '\xD1';//***ok
+                                                        propKeyFriendlyName.fmtid.Data4[3] = '\xD1';
                                                         propKeyFriendlyName.fmtid.Data4[4] = '\x46';
-                                                        propKeyFriendlyName.fmtid.Data4[5] = '\xA8';//***ok
+                                                        propKeyFriendlyName.fmtid.Data4[5] = '\xA8';
                                                         propKeyFriendlyName.fmtid.Data4[6] = '\x50';
-                                                        propKeyFriendlyName.fmtid.Data4[7] = '\xE0';//***ok
+                                                        propKeyFriendlyName.fmtid.Data4[7] = '\xE0';
                                                         propKeyFriendlyName.pid = 14;
                                                         hr = ipStore->GetValue(propKeyFriendlyName, &propFriendlyName);
                                                         ipStore->Release();
@@ -192,7 +154,7 @@ int main()
                                                                     pPolicyConfig->SetDefaultEndpoint(wIdDefaultNew, eCommunications);
                                                                 }
                                                                 pPolicyConfig->Release();
-                                                                if (hr == S_OK && (g_hFont = CreateFont(eFontHeight, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH, L"Tahoma")))
+                                                                if (hr == S_OK)
                                                                 {
                                                                     WNDCLASS wndCl;
                                                                     wndCl.style = 0;
@@ -211,24 +173,14 @@ int main()
                                                                         g_wSoundCardName = propFriendlyName.pwszVal;
                                                                         if (const HWND hWnd = CreateWindowEx(WS_EX_NOACTIVATE | WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_TRANSPARENT | WS_EX_TOPMOST, g_wGuidClass, 0, WS_POPUP | WS_VISIBLE | WS_MAXIMIZE, 0, 0, 0, 0, 0, 0, wndCl.hInstance, 0))
                                                                         {
-                                                                            if (SetLayeredWindowAttributes(hWnd, 0, 0, LWA_COLORKEY))
-                                                                            {
-                                                                                //Skype begin
-                                                                                if (iCount > 1 && (g_iIdSkypeControlApiAttach = RegisterWindowMessage(L"SkypeControlAPIAttach")) &&
-                                                                                        (iCount = RegisterWindowMessage(L"SkypeControlAPIDiscover")))
-                                                                                    PostMessage(HWND_BROADCAST, iCount, reinterpret_cast<WPARAM>(hWnd), 0);
-                                                                                //Skype end
-
-                                                                                SetTimer(hWnd, 1, 1500, 0);
-                                                                                MSG msg;
-                                                                                while (GetMessage(&msg, 0, 0, 0) > 0)
-                                                                                    DispatchMessage(&msg);
-                                                                            }
-                                                                            DestroyWindow(hWnd);
+                                                                            SetLayeredWindowAttributes(hWnd, 0, 0, LWA_COLORKEY);
+                                                                            SetTimer(hWnd, 1, 1500, 0);
+                                                                            MSG msg;
+                                                                            while (GetMessage(&msg, 0, 0, 0) > 0)
+                                                                                DispatchMessage(&msg);
                                                                         }
                                                                         UnregisterClass(g_wGuidClass, wndCl.hInstance);
                                                                     }
-                                                                    DeleteObject(g_hFont);
                                                                 }
                                                             }
                                                         }
