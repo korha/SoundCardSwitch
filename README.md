@@ -1,1 +1,1 @@
-Switches around default sound card in Windows
+Switches around default sound card in Windows (WinAPI)
