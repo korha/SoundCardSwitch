@@ -17,28 +17,36 @@ public:
     virtual HRESULT STDMETHODCALLTYPE SetDefaultEndpoint(IN PCWSTR wszDeviceId, IN ERole eRole);
     virtual HRESULT STDMETHODCALLTYPE SetEndpointVisibility(PCWSTR, INT);
 };
-__CRT_UUID_DECL(IPolicyConfig, 0xf8679f50, 0x850a, 0x41cf, 0x9c, 0x72, 0x43, 0x0f, 0x29, 0x02, 0x90, 0xc8)
+__CRT_UUID_DECL(IPolicyConfig, 0xF8679F50, 0x850A, 0x41CF, 0x9C, 0x72, 0x43, 0x0F, 0x29, 0x02, 0x90, 0xC8)
 
 class DECLSPEC_UUID("870af99c-171d-4f9e-af0d-e63df40c2bc9") CPolicyConfigClient;
-__CRT_UUID_DECL(CPolicyConfigClient, 0x870af99c, 0x171d, 0x4f9e, 0xaf, 0x0d, 0xe6, 0x3d, 0xf4, 0x0c, 0x2b, 0xc9)
+__CRT_UUID_DECL(CPolicyConfigClient, 0x870AF99C, 0x171D, 0x4F9E, 0xAF, 0x0D, 0xE6, 0x3D, 0xF4, 0x0C, 0x2B, 0xC9)
 
-//-------------------------------------------------------------------------------------------------
-const wchar_t *const g_wGuidClass = L"15423203-ff9d-2e13-1788-e087bcd8dbcb";
-wchar_t *g_wSoundCardName;
+static const wchar_t *const g_wGuidClass = L"App::15423203-ff9d-2e13-1788-e087bcd8dbcb";
 
-enum
-{
-    eFontHeight = 48
-};
+enum {eCellHeight = 48};
 
 //-------------------------------------------------------------------------------------------------
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     static HFONT hFont;
+    static bool bTimerActive = false;
+    static const wchar_t *wSoundCardName;
+
     switch (uMsg)
     {
     case WM_CREATE:
-        return (hFont = CreateFont(eFontHeight, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH, L"Tahoma")) ? 0 : -1;
+    {
+        if ((hFont = CreateFont(eCellHeight, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH, L"Tahoma")) &&
+                SetLayeredWindowAttributes(hWnd, 0, 0, LWA_COLORKEY) &&
+                SetTimer(hWnd, 1, 1500, 0))
+        {
+            bTimerActive = true;
+            wSoundCardName = static_cast<wchar_t*>(reinterpret_cast<const CREATESTRUCT*>(lParam)->lpCreateParams);
+            return 0;
+        }
+        return -1;
+    }
     case WM_PAINT:
     {
         PAINTSTRUCT ps;
@@ -51,21 +59,28 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 SelectObject(hDc, hFont);
                 SetBkColor(hDc, RGB(1, 1, 1));
                 SetTextColor(hDc, RGB(255, 127, 0));
-                DrawText(hDc, g_wSoundCardName, -1, &rect, DT_CENTER);
+                DrawText(hDc, wSoundCardName, -1, &rect, DT_CENTER);
             }
             EndPaint(hWnd, &ps);
         }
         return 0;
     }
     case WM_TIMER:
+    {
         KillTimer(hWnd, 1);
+        bTimerActive = false;
         PostMessage(hWnd, WM_CLOSE, 0, 0);
         return 0;
+    }
     case WM_DESTROY:
+    {
+        if (bTimerActive)
+            KillTimer(hWnd, 1);
         if (hFont)
             DeleteObject(hFont);
         PostQuitMessage(0);
         return 0;
+    }
     }
     return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
@@ -131,14 +146,14 @@ int main()
                                                         propKeyFriendlyName.fmtid.Data1 = 0xA45C254E;
                                                         propKeyFriendlyName.fmtid.Data2 = 0xDF1C;
                                                         propKeyFriendlyName.fmtid.Data3 = 0x4EFD;
-                                                        propKeyFriendlyName.fmtid.Data4[0] = '\x80';
-                                                        propKeyFriendlyName.fmtid.Data4[1] = '\x20';
-                                                        propKeyFriendlyName.fmtid.Data4[2] = '\x67';
-                                                        propKeyFriendlyName.fmtid.Data4[3] = '\xD1';
-                                                        propKeyFriendlyName.fmtid.Data4[4] = '\x46';
-                                                        propKeyFriendlyName.fmtid.Data4[5] = '\xA8';
-                                                        propKeyFriendlyName.fmtid.Data4[6] = '\x50';
-                                                        propKeyFriendlyName.fmtid.Data4[7] = '\xE0';
+                                                        propKeyFriendlyName.fmtid.Data4[0] = 0x80;
+                                                        propKeyFriendlyName.fmtid.Data4[1] = 0x20;
+                                                        propKeyFriendlyName.fmtid.Data4[2] = 0x67;
+                                                        propKeyFriendlyName.fmtid.Data4[3] = 0xD1;
+                                                        propKeyFriendlyName.fmtid.Data4[4] = 0x46;
+                                                        propKeyFriendlyName.fmtid.Data4[5] = 0xA8;
+                                                        propKeyFriendlyName.fmtid.Data4[6] = 0x50;
+                                                        propKeyFriendlyName.fmtid.Data4[7] = 0xE0;
                                                         propKeyFriendlyName.pid = 14;
                                                         hr = ipStore->GetValue(propKeyFriendlyName, &propFriendlyName);
                                                         ipStore->Release();
@@ -156,25 +171,17 @@ int main()
                                                                 pPolicyConfig->Release();
                                                                 if (hr == S_OK)
                                                                 {
-                                                                    WNDCLASS wndCl;
-                                                                    wndCl.style = 0;
+                                                                    WNDCLASSEX wndCl;
+                                                                    memset(&wndCl, 0, sizeof(WNDCLASSEX));
+                                                                    wndCl.cbSize = sizeof(WNDCLASSEX);
                                                                     wndCl.lpfnWndProc = WindowProc;
-                                                                    wndCl.cbClsExtra = 0;
-                                                                    wndCl.cbWndExtra = 0;
                                                                     wndCl.hInstance = GetModuleHandle(0);
-                                                                    wndCl.hIcon = 0;
-                                                                    wndCl.hCursor = 0;
-                                                                    wndCl.hbrBackground = 0;
-                                                                    wndCl.lpszMenuName = 0;
                                                                     wndCl.lpszClassName = g_wGuidClass;
 
-                                                                    if (RegisterClass(&wndCl))
+                                                                    if (RegisterClassEx(&wndCl))
                                                                     {
-                                                                        g_wSoundCardName = propFriendlyName.pwszVal;
-                                                                        if (const HWND hWnd = CreateWindowEx(WS_EX_NOACTIVATE | WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_TRANSPARENT | WS_EX_TOPMOST, g_wGuidClass, 0, WS_POPUP | WS_VISIBLE | WS_MAXIMIZE, 0, 0, 0, 0, 0, 0, wndCl.hInstance, 0))
+                                                                        if (CreateWindowEx(WS_EX_NOACTIVATE | WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_TRANSPARENT | WS_EX_TOPMOST, g_wGuidClass, 0, WS_POPUP | WS_VISIBLE | WS_MAXIMIZE, 0, 0, 0, 0, 0, 0, wndCl.hInstance, propFriendlyName.pwszVal))
                                                                         {
-                                                                            SetLayeredWindowAttributes(hWnd, 0, 0, LWA_COLORKEY);
-                                                                            SetTimer(hWnd, 1, 1500, 0);
                                                                             MSG msg;
                                                                             while (GetMessage(&msg, 0, 0, 0) > 0)
                                                                                 DispatchMessage(&msg);

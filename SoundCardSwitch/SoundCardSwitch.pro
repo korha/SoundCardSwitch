@@ -1,10 +1,8 @@
 TEMPLATE = app
 
-CONFIG -= app_bundle
-CONFIG -= qt
-
 QMAKE_LFLAGS += -static
+QMAKE_CXXFLAGS += -Wpedantic
 
-LIBS += -lole32 -lgdi32
+LIBS += -lgdi32 -lole32
 
 SOURCES += main.cpp
